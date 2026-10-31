@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="mr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#183c32">
+  <meta name="description" content="गटमित्र: बचत गटाचे ऑफलाइन व्यवस्थापन">
+  <title>गटमित्र | बचत गट व्यवस्थापन</title>
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <div class="app-frame">
+    <header class="topbar">
+      <a class="brand" href="#baithak" aria-label="गटमित्र मुख्यपृष्ठ">
+        <span class="brand-mark" aria-hidden="true">ग</span>
+        <span class="brand-copy"><strong>गटमित्र</strong><small id="group-name">माऊली बचत गट</small></span>
+      </a>
+      <span class="offline-indicator"><i></i> ऑफलाइन तयार</span>
+    </header>
+
+    <section class="vault-strip" aria-label="तिजोरी शिल्लक">
+      <div class="vault vault-cash">
+        <span class="vault-label"><span class="vault-icon" aria-hidden="true">₹</span> हातातील रोकड
+        </span>
+        <strong id="cash-balance">₹0</strong>
+      </div>
+      <div class="vault-divider" aria-hidden="true"></div>
+      <div class="vault vault-bank">
+        <span class="vault-label"><span class="vault-icon bank-icon" aria-hidden="true">▤</span> बँक शिल्लक
+        </span>
+        <strong id="bank-balance">₹0</strong>
+      </div>
+      <div class="vault-divider vault-loan-divider" aria-hidden="true"></div>
+      <div class="vault vault-loans">
+        <span class="vault-label"><span class="vault-icon loan-icon" aria-hidden="true">↗</span> एकूण वाटप केलेले कर्ज</span>
+        <strong id="active-loans-balance">₹0</strong>
+      </div>
+    </section>
+
+    <main class="main-content">
+      <section class="screen is-active" id="screen-baithak" aria-labelledby="baithak-title">
+        <div class="screen-heading heading-row">
+          <div><p class="eyebrow">आजची नोंद</p><h1 id="baithak-title">बैठक</h1></div>
+          <label class="date-field"><span>बैठकीची तारीख</span><input id="meeting-date" type="date"></label>
+        </div>
+
+        <button class="collect-all" id="collect-all" type="button">
+          <span class="collect-icon" aria-hidden="true">＋</span>
+          <span><strong>सर्व सदस्यांची बचत जमा करा</strong><small id="collect-all-caption">प्रत्येकी ₹200 भरणा भरा</small></span>
+          <span class="button-arrow" aria-hidden="true">→</span>
+        </button>
+
+        <div class="list-toolbar">
+          <div><h2>सदस्यांची वसुली</h2><span id="member-count">0 सदस्य</span></div>
+          <div class="mode-switch" role="group" aria-label="जमा करण्याचे खाते">
+            <button type="button" class="mode-button is-selected" data-mode="cash" aria-pressed="true">रोकड</button>
+            <button type="button" class="mode-button" data-mode="bank" aria-pressed="false">बँक</button>
+          </div>
+        </div>
+
+        <div id="collection-list" class="member-list" aria-live="polite"></div>
+        <form class="quick-entry" id="quick-entry-form" autocomplete="off">
+          <button class="mic-button" id="voice-input" type="button" aria-label="आवाजाने नोंद करा" title="आवाजाने नोंद करा">🎤</button>
+          <label class="quick-entry-input"><span class="visually-hidden">आवाज किंवा मजकूर नोंद</span><input id="quick-entry-text" name="quickEntry" type="text" placeholder="उदा. सुनीता 1500 किंवा खर्च 50 ऑटो" enterkeyhint="done"></label>
+          <button class="quick-entry-submit" type="submit" aria-label="नोंद भरा" title="नोंद भरा">↵</button>
+          <p class="quick-entry-toast" id="quick-entry-toast" role="status" aria-live="polite"></p>
+        </form>
+        <section class="outflow-section" aria-labelledby="outflow-title">
+          <div class="outflow-heading"><span class="section-number">02</span><div><p class="eyebrow">बैठकीचा हिशेब</p><h2 id="outflow-title">आउटफ्लो व वाटप</h2></div></div>
+          <div class="outflow-block">
+            <h3>नवीन अंतर्गत कर्ज वाटप</h3>
+            <form class="outflow-form loan-form" id="loan-form">
+              <label>लाभार्थी सदस्य<select name="memberId" id="loan-member" required></select></label>
+              <div class="form-grid">
+                <label>कर्ज रक्कम (₹)<input name="amount" type="number" min="1" step="1" inputmode="numeric" required></label>
+                <label>ठराव क्रमांक<input name="resolutionNo" type="text" maxlength="40" placeholder="उदा. ०१/२०२६" required></label>
+              </div>
+              <label>कर्जाचा उद्देश<input name="purpose" type="text" maxlength="100" placeholder="शिलाई मशीन / शेती" required></label>
+              <button class="secondary-button" type="submit"><span aria-hidden="true">＋</span> कर्ज वाटप जोडा</button>
+            </form>
+            <div class="draft-list" id="loan-draft-list"></div>
+          </div>
+          <div class="outflow-block">
+            <h3>गट इतर खर्च</h3>
+            <form class="outflow-form expense-form" id="expense-form">
+              <label>खर्चाचा तपशील<input name="title" type="text" maxlength="100" placeholder="झेरॉक्स / रिक्षा भाडे" required></label>
+              <div class="inline-entry"><label>रक्कम (₹)<input name="amount" type="number" min="1" step="1" inputmode="numeric" required></label><button class="secondary-button" type="submit"><span aria-hidden="true">＋</span> खर्च जोडा</button></div>
+            </form>
+            <div class="draft-list" id="expense-draft-list"></div>
+          </div>
+          <section class="reconcile-card" aria-labelledby="reconcile-title">
+            <div class="reconcile-head"><div><p class="eyebrow">रोकड ताळमेळ</p><h3 id="reconcile-title">हातातील शिल्लक व बँक जमा</h3></div><span class="reconcile-mark" aria-hidden="true">=</span></div>
+            <div class="reconcile-equation">
+              <div><small>एकूण जमा रोकड</small><strong id="reconcile-collected">₹0</strong></div><span>−</span>
+              <div><small>नवीन कर्ज</small><strong id="reconcile-loans">₹0</strong></div><span>−</span>
+              <div><small>गट खर्च</small><strong id="reconcile-expenses">₹0</strong></div><span>=</span>
+              <div class="deposit-amount"><small>बँकेत जमा</small><strong id="reconcile-deposit">₹0</strong></div>
+            </div>
+            <p class="reconcile-warning" id="reconcile-warning" role="status"></p>
+          </section>
+        </section>
+        <div class="collection-footer">
+          <div class="collection-total"><span>एकूण जमा</span><strong id="meeting-total">₹0</strong></div>
+          <button class="primary-button" id="save-meeting" type="button">बैठक जतन करा <span aria-hidden="true">↗</span></button>
+        </div>
+        <p class="status-message" id="baithak-status" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="screen" id="screen-members" aria-labelledby="members-title" hidden>
+        <div class="screen-heading"><p class="eyebrow">गटाची नोंदवही</p><h1 id="members-title">सदस्य</h1></div>
+        <form class="form-panel" id="add-member-form">
+          <h2>नवीन सदस्य</h2>
+          <label>पूर्ण नाव<input name="name" type="text" autocomplete="name" maxlength="80" required placeholder="उदा. आशा पाटील"></label>
+          <div class="form-grid">
+            <label>मोबाइल क्रमांक<input name="phone" type="tel" inputmode="tel" maxlength="15" placeholder="ऐच्छिक"></label>
+            <label>चालू कर्ज (₹)<input name="activeLoan" type="number" min="0" step="1" value="0" inputmode="numeric"></label>
+          </div>
+          <button class="primary-button" type="submit">सदस्य जोडा <span aria-hidden="true">＋</span></button>
+          <p class="status-message" id="members-status" role="status" aria-live="polite"></p>
+        </form>
+        <div class="list-toolbar member-screen-toolbar"><div><h2>गटातील सदस्य</h2><span id="directory-count">0 सदस्य</span></div></div>
+        <div class="directory-list" id="directory-list"></div>
+      </section>
+
+      <section class="screen" id="screen-report" aria-labelledby="report-title" hidden>
+        <div class="screen-heading"><p class="eyebrow">गटाची जमा-खर्च नोंद</p><h1 id="report-title">अहवाल</h1></div>
+        <section class="receipt-panel" aria-labelledby="receipt-title">
+          <div class="receipt-heading"><div><p class="eyebrow">गटासाठी तयार संदेश</p><h2 id="receipt-title">WhatsApp पावती जनरेटर</h2></div><span aria-hidden="true">↗</span></div>
+          <label class="select-label">बैठक निवडा<select id="receipt-meeting"></select></label>
+          <pre class="receipt-preview" id="receipt-preview" aria-live="polite"></pre>
+          <div class="receipt-actions"><button class="secondary-button" id="copy-receipt" type="button">प्रत करा</button><a class="primary-button whatsapp-button" id="whatsapp-send" href="https://wa.me/" target="_blank" rel="noopener">WhatsApp वर पाठवा <span aria-hidden="true">↗</span></a></div>
+          <p class="status-message" id="receipt-status" role="status" aria-live="polite"></p>
+        </section>
+        <div class="report-period"><span class="period-dot"></span><span id="report-month">या महिन्याचा सारांश</span></div>
+        <div class="report-grid">
+          <article class="report-stat stat-green"><span>बचत जमा</span><strong id="report-bachat">₹0</strong><small>एकूण सदस्य बचत</small></article>
+          <article class="report-stat stat-blue"><span>व्याज जमा</span><strong id="report-interest">₹0</strong><small>या महिन्यात</small></article>
+          <article class="report-stat stat-orange"><span>मुद्दल परतफेड</span><strong id="report-principal">₹0</strong><small>या महिन्यात</small></article>
+          <article class="report-stat stat-dark"><span>एकूण वसुली</span><strong id="report-collected">₹0</strong><small id="report-meetings">0 बैठका</small></article>
+        </div>
+        <section class="dividend-panel" aria-labelledby="dividend-title">
+          <div class="dividend-heading"><div><p class="eyebrow">वार्षिक हिशेब</p><h2 id="dividend-title">वार्षिक नफा वाटप</h2></div><label class="dividend-year-label">वर्ष<select id="dividend-year" aria-label="नफा वाटप वर्ष"></select></label></div>
+          <div class="dividend-lines">
+            <div><span>एकूण मिळालेले व्याज</span><strong id="dividend-interest">₹0</strong></div>
+            <div><span>एकूण दंड वसुली</span><strong id="dividend-fines">₹0</strong></div>
+            <div><span>वजा: एकूण गट खर्च</span><strong id="dividend-expenses">−₹0</strong></div>
+            <div class="dividend-net"><span>निव्वळ वाटपयोग्य नफा</span><strong id="dividend-net">₹0</strong></div>
+            <div class="dividend-share"><span>प्रत्येकी वाटप नफा <small id="dividend-member-count">0 सदस्य</small></span><strong id="dividend-per-member">₹0</strong></div>
+          </div>
+          <a class="primary-button dividend-share-button" id="dividend-whatsapp" href="https://wa.me/" target="_blank" rel="noopener">WhatsApp वर नफा वाटप यादी पाठवा <span aria-hidden="true">↗</span></a>
+        </section>
+        <div class="report-section"><div class="list-toolbar"><div><h2>अलीकडील बैठका</h2></div></div><div id="recent-meetings" class="recent-list"></div></div>
+      </section>
+
+      <section class="screen" id="screen-resolutions" aria-labelledby="resolutions-title" hidden>
+        <div class="screen-heading"><p class="eyebrow">बँकेसाठी अधिकृत नोंद</p><h1 id="resolutions-title">बँक ठराव</h1></div>
+        <div class="resolution-toolbar"><label class="select-label">कर्ज वाटपाची बैठक<select id="resolution-meeting"></select></label><button class="primary-button" id="print-resolution" type="button">प्रिंट / PDF <span aria-hidden="true">↗</span></button></div>
+        <article class="resolution-sheet" id="resolution-print">
+          <div class="resolution-brand"><span class="resolution-emblem">ग</span><div><strong id="resolution-gat-name">माऊली बचत गट</strong><small>बँक ठराव</small></div></div>
+          <div class="resolution-meta"><div><span>ठराव क्रमांक</span><strong id="resolution-number">—</strong></div><div><span>दिनांक</span><strong id="resolution-date">—</strong></div></div>
+          <h2>अंतर्गत कर्ज वितरणाबाबत ठराव</h2>
+          <p class="resolution-body" id="resolution-body"></p>
+          <div class="resolution-table-wrap"><table class="resolution-table"><thead><tr><th>अ.क्र.</th><th>लाभार्थी सदस्य</th><th>कर्ज रक्कम</th><th>कर्जाचा उद्देश</th></tr></thead><tbody id="resolution-loan-rows"></tbody><tfoot><tr><th colspan="2">एकूण मंजूर कर्ज</th><th id="resolution-total">₹0</th><td></td></tr></tfoot></table></div>
+          <p class="resolution-closing">वरील ठराव सभेत उपस्थित सदस्यांच्या संमतीने मंजूर करण्यात आला.</p>
+          <div class="office-signatures"><div><span></span><strong>अध्यक्षा</strong><small>स्वाक्षरी</small></div><div><span></span><strong>सचिव</strong><small>स्वाक्षरी</small></div></div>
+          <div class="member-signature-section"><h3>उपस्थित सदस्यांच्या स्वाक्षऱ्या</h3><div id="resolution-member-signatures" class="member-signatures"></div></div>
+        </article>
+        <p class="empty-state" id="resolution-empty" hidden>या बैठकीत अंतर्गत कर्ज वाटपाची नोंद नाही.</p>
+      </section>
+
+      <section class="screen" id="screen-rules" aria-labelledby="rules-title" hidden>
+        <div class="screen-heading"><p class="eyebrow">गटाचे आर्थिक नियम</p><h1 id="rules-title">नियम</h1></div>
+        <form class="form-panel rules-form" id="settings-form">
+          <h2>गटाची माहिती</h2>
+          <label>गटाचे नाव<input name="gatName" type="text" maxlength="80" required></label>
+          <div class="form-grid">
+            <label>मासिक बचत (₹)<input name="monthlyBachat" type="number" min="0" step="1" required inputmode="numeric"></label>
+            <label>मासिक व्याज (%)<input name="interestRate" type="number" min="0" step="0.1" required inputmode="decimal"></label>
+          </div>
+          <label>उशिराचा दंड (₹)<input name="lateFine" type="number" min="0" step="1" required inputmode="numeric"></label>
+          <button class="primary-button" type="submit">नियम जतन करा <span aria-hidden="true">↗</span></button>
+          <p class="status-message" id="settings-status" role="status" aria-live="polite"></p>
+        </form>
+        <section class="backup-panel" aria-labelledby="backup-title">
+          <div><p class="eyebrow">माहिती सुरक्षित ठेवा</p><h2 id="backup-title">डेटा बॅकअप व रिस्टोअर</h2></div>
+          <p>गटाची सेटिंग, सदस्य, बैठका, खर्च आणि कर्ज यांचा JSON बॅकअप तयार करा.</p>
+          <div class="backup-actions">
+            <button class="secondary-button" id="download-backup" type="button">बॅकअप डाऊनलोड करा (JSON)</button>
+            <button class="secondary-button" id="share-backup" type="button">WhatsApp वर बॅकअप पाठवा</button>
+            <button class="restore-button" id="choose-backup" type="button">बॅकअप रिस्टोअर करा</button>
+            <input id="backup-file" type="file" accept=".json,application/json" hidden>
+          </div>
+          <p class="status-message" id="backup-status" role="status" aria-live="polite"></p>
+        </section>
+        <aside class="rule-note"><span aria-hidden="true">i</span><p>वसुलीचा क्रम: उशिराचा दंड, मासिक बचत, कर्जावरील व्याज आणि शेवटी मुद्दल. कमी रक्कम आल्यास आधी बचतीला प्राधान्य दिले जाते.</p></aside>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="मुख्य नेव्हिगेशन">
+      <button type="button" class="nav-button is-active" data-screen="baithak" aria-current="page"><span aria-hidden="true">▦</span><small>बैठक</small></button>
+      <button type="button" class="nav-button" data-screen="members"><span aria-hidden="true">♙</span><small>सदस्य</small></button>
+      <button type="button" class="nav-button" data-screen="report"><span aria-hidden="true">▥</span><small>अहवाल</small></button>
+      <button type="button" class="nav-button" data-screen="resolutions"><span aria-hidden="true">▤</span><small>ठराव</small></button>
+      <button type="button" class="nav-button" data-screen="rules"><span aria-hidden="true">⚙</span><small>नियम</small></button>
+    </nav>
+  </div>
+</body>
+</html>
