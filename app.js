@@ -629,7 +629,9 @@ function bindEvents() {
   $("#collection-list").addEventListener("input", (event) => {
     const input = event.target.closest(".payment-input");
     if (!input) return;
+    input.removeAttribute("aria-invalid");
     const member = members.find((item) => item.id === Number(input.dataset.memberId));
+    if (!member) return;
     const split = calculateSplit(input.value, member, $("#meeting-date").value || dateToday());
     $(`[data-split-for="${member.id}"]`).innerHTML = splitMarkup(split);
     updateMeetingTotal();
@@ -753,33 +755,60 @@ function bindEvents() {
 
   $("#save-meeting").addEventListener("click", async (event) => {
     const button = event.currentTarget;
-    const date = $("#meeting-date").value;
-    const records = $$(".payment-input").map((input) => {
-      const paid = Math.max(0, Math.round(Number(input.value) || 0));
-      if (!paid) return null;
-      const member = members.find((item) => item.id === Number(input.dataset.memberId));
-      return { memberId: member.id, memberName: member.name, paid, ...calculateSplit(paid, member, date), paymentMode };
-    }).filter(Boolean);
-
-    if (!date) {
-      showStatus($("#baithak-status"), "बैठकीची तारीख निवडा.", true);
-      return;
-    }
-    if (!records.length) {
-      showStatus($("#baithak-status"), "जतन करण्यापूर्वी किमान एका सदस्याची रक्कम भरा.", true);
-      return;
-    }
-    const cashCollected = records.reduce((sum, record) => sum + (record.paymentMode === "cash" ? record.paid : 0), 0);
-    const expensesTotal = expenseDrafts.reduce((sum, expense) => sum + expense.amount, 0);
-    const loansTotal = loanDrafts.reduce((sum, loan) => sum + loan.amount, 0);
-    if (expensesTotal + loansTotal > cashCollected) {
-      showStatus($("#baithak-status"), `कर्ज वाटप आणि खर्चासाठी रोकड अपुरी आहे. अजून ${money(expensesTotal + loansTotal - cashCollected)} जमा करा.`, true);
-      return;
-    }
-
     button.disabled = true;
-    showStatus($("#baithak-status"), "बैठक जतन होत आहे…");
     try {
+      const date = $("#meeting-date").value;
+      if (!date) {
+        showStatus($("#baithak-status"), "बैठकीची तारीख निवडा.", true);
+        return;
+      }
+
+      const records = [];
+      for (const input of $$(".payment-input")) {
+        if (!input.value.trim()) continue;
+        const member = members.find((item) => item.id === Number(input.dataset.memberId));
+        if (!member) {
+          input.setAttribute("aria-invalid", "true");
+          input.focus();
+          showStatus($("#baithak-status"), "या रकमेचा सदस्य सापडला नाही. पृष्ठ रीफ्रेश करून पुन्हा प्रयत्न करा.", true);
+          return;
+        }
+
+        const paid = Number(input.value);
+        if (!Number.isFinite(paid) || paid < 0 || !Number.isInteger(paid)) {
+          input.setAttribute("aria-invalid", "true");
+          input.focus();
+          showStatus($("#baithak-status"), `${member.name} यांची रक्कम शून्य किंवा त्याहून अधिक पूर्णांक असावी.`, true);
+          return;
+        }
+        input.removeAttribute("aria-invalid");
+        if (paid === 0) continue;
+        if (paymentMode !== "cash" && paymentMode !== "bank") {
+          showStatus($("#baithak-status"), "जमा करण्याचे खाते निवडा: रोकड किंवा बँक.", true);
+          return;
+        }
+        records.push({
+          memberId: member.id,
+          memberName: member.name,
+          paid,
+          ...calculateSplit(paid, member, date),
+          paymentMode,
+        });
+      }
+
+      if (!records.length) {
+        showStatus($("#baithak-status"), "जतन करण्यापूर्वी किमान एका सदस्याची रक्कम भरा.", true);
+        return;
+      }
+      const cashCollected = records.reduce((sum, record) => sum + (record.paymentMode === "cash" ? record.paid : 0), 0);
+      const expensesTotal = expenseDrafts.reduce((sum, expense) => sum + expense.amount, 0);
+      const loansTotal = loanDrafts.reduce((sum, loan) => sum + loan.amount, 0);
+      if (expensesTotal + loansTotal > cashCollected) {
+        showStatus($("#baithak-status"), `कर्ज वाटप आणि खर्चासाठी रोकड अपुरी आहे. अजून ${money(expensesTotal + loansTotal - cashCollected)} जमा करा.`, true);
+        return;
+      }
+
+      showStatus($("#baithak-status"), "बैठक जतन होत आहे…");
       await saveMeeting({
         date,
         collectedBachat: records.reduce((sum, record) => sum + record.bachat, 0),
@@ -801,7 +830,12 @@ function bindEvents() {
       renderAll();
       showStatus($("#baithak-status"), "बैठक, जमा-खर्च आणि कर्ज वाटप जतन झाले.");
     } catch (error) {
-      showStatus($("#baithak-status"), error.message || "बैठक जतन करता आली नाही.", true);
+      const details = error instanceof Error ? error.message : "";
+      showStatus(
+        $("#baithak-status"),
+        details ? `बैठक जतन करता आली नाही: ${details}` : "बैठक जतन करता आली नाही.",
+        true,
+      );
     } finally {
       button.disabled = false;
     }

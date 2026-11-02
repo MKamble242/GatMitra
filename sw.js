@@ -1,4 +1,4 @@
-const CACHE_NAME = "gatmitra-shell-v4";
+const CACHE_NAME = "gatmitra-shell-v5";
 const APP_FILES = ["./", "./index.html", "./styles.css", "./app.js", "./db.js"];
 
 self.addEventListener("install", (event) => {

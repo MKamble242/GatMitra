@@ -260,7 +260,7 @@ export async function restoreDatabase(backup) {
 
 export async function saveMeeting(meeting) {
   if (!meeting || !/^\d{4}-\d{2}-\d{2}$/.test(meeting.date) || !Array.isArray(meeting.records)) {
-    throw new TypeError("A meeting date and collection records are required.");
+    throw new TypeError("बैठकीची तारीख आणि सदस्यांच्या वसुलीची नोंद आवश्यक आहे.");
   }
   const expenses = Array.isArray(meeting.expenses) ? meeting.expenses : [];
   const loans = Array.isArray(meeting.loans) ? meeting.loans : [];
@@ -268,11 +268,12 @@ export async function saveMeeting(meeting) {
   const records = meeting.records.map((record) => {
     const amounts = ["paid", "fine", "bachat", "interest", "principal"];
     if (!Number.isInteger(Number(record.memberId)) || Number(record.memberId) < 1) {
-      throw new TypeError("Each collection record must have a valid member ID.");
+      throw new TypeError("वसुलीच्या नोंदीतील सदस्य क्रमांक चुकीचा आहे.");
     }
     for (const field of amounts) {
       if (!Number.isFinite(Number(record[field])) || Number(record[field]) < 0) {
-        throw new TypeError(`Collection ${field} must be a non-negative number.`);
+        const labels = { paid: "भरलेली रक्कम", fine: "दंड", bachat: "बचत", interest: "व्याज", principal: "मुद्दल" };
+        throw new TypeError(`${labels[field]} शून्य किंवा त्याहून अधिक असणे आवश्यक आहे.`);
       }
     }
     return { ...record, memberId: Number(record.memberId) };
@@ -280,7 +281,7 @@ export async function saveMeeting(meeting) {
   const safeExpenses = expenses.map((expense) => {
     const amount = Number(expense.amount);
     if (typeof expense.title !== "string" || !expense.title.trim() || !Number.isFinite(amount) || amount <= 0) {
-      throw new TypeError("Each expense needs a title and a positive amount.");
+      throw new TypeError("प्रत्येक खर्चासाठी तपशील आणि शून्यापेक्षा मोठी रक्कम आवश्यक आहे.");
     }
     return { title: expense.title.trim(), amount, date: meeting.date };
   });
@@ -290,7 +291,7 @@ export async function saveMeeting(meeting) {
       || !Number.isFinite(amount) || amount <= 0
       || typeof loan.purpose !== "string" || !loan.purpose.trim()
       || typeof loan.resolutionNo !== "string" || !loan.resolutionNo.trim()) {
-      throw new TypeError("Each new loan needs a member, positive amount, purpose, and resolution number.");
+      throw new TypeError("नवीन कर्जासाठी सदस्य, शून्यापेक्षा मोठी रक्कम, उद्देश आणि ठराव क्रमांक आवश्यक आहे.");
     }
     return {
       memberId: Number(loan.memberId),
@@ -345,6 +346,7 @@ export async function saveMeeting(meeting) {
   }
 
   const meetingRequest = transaction.objectStore("meetings").add(safeMeeting);
+  let missingMemberId = null;
   meetingRequest.addEventListener("success", () => {
     const meetingId = meetingRequest.result;
     for (const expense of safeExpenses) {
@@ -358,6 +360,7 @@ export async function saveMeeting(meeting) {
       request.onsuccess = () => {
         const member = request.result;
         if (!member) {
+          missingMemberId = memberId;
           transaction.abort();
           return;
         }
@@ -375,6 +378,9 @@ export async function saveMeeting(meeting) {
     return { ...safeMeeting, id };
   } catch (error) {
     await completion.catch(() => {});
+    if (missingMemberId !== null) {
+      throw new Error(`सदस्य क्रमांक ${missingMemberId} नोंदवहीत सापडला नाही. बैठक जतन झाली नाही.`);
+    }
     throw error;
   }
 }
